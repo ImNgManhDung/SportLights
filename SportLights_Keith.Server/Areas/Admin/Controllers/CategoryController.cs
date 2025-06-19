@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Identity.Client;
 using SPORTLIGHTS_SERVER.Areas.Admin.DTOs.Categories;
 using SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository;
 using SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository.Abstractions;
@@ -77,7 +78,6 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 			});
 		}
 
-
 		[HttpPost("category")]
 		public async Task<ActionResult> Add(CreateCategoryDto model)
 		{
@@ -100,6 +100,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				}
 
 				var isCreated = await _categoryRepo.CreateCategory(model);
+
 				if (!isCreated)
 				{
 					return BadRequest(MsgHasError);
@@ -108,6 +109,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				return Ok(new
 				{
 					response_code = ResponseCodes.Created,
+					customer_id = isCreated,
 					results = MsgSuccess
 				});
 			}
@@ -116,7 +118,6 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				return StatusCode(500, "Eror: " + ex.Message);
 			}
 		}
-
 
 		[HttpPut("{categoryid}")]
 		public async Task<ActionResult> Edit(CreateCategoryDto dataView)
@@ -137,7 +138,6 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 			if (string.IsNullOrEmpty(dataView.CategoryName))
 			{
 				return BadRequest(MsgCategoryNameIsRequired);
-
 			}
 
 			var isCheckCatelogProductIsExists = await _categoryRepo.CheckCreateCategory(dataView.CategoryName);
@@ -155,21 +155,19 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 			return Ok(new
 			{
 				response_code = ResponseCodes.NoContent,
-				results = dataView.CategoryId,
+				category_id = dataView.CategoryId,
 			});
 		}
 
-
-
 		[HttpDelete("{categoryid}")]
-		public ActionResult Delete(long categoryid = 0)
+		public async Task<ActionResult> Delete(long categoryid = 0)
 		{
 			if (categoryid == 0)
 			{				
 				return BadRequest(MsgCategoryIsNotExists);
 			}
 
-			var catelogProduct = _categoryRepo.DeleteCategory(categoryid);
+			var catelogProduct = await _categoryRepo.DeleteCategory(categoryid);
 
 			if (!catelogProduct)
 			{
@@ -179,7 +177,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 			return Ok(new
 			{
 				response_code = ResponseCodes.NoContent,
-				results = categoryid,			
+				category_id = categoryid,					
 			});
 		}
 	}

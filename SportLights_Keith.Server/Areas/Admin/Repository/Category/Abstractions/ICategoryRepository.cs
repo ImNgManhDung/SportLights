@@ -20,7 +20,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository.Abstracti
 
 		bool UpdateCategory(CreateCategoryDto dataDto);
 
-		bool DeleteCategory(long catelogID);
+		Task<bool> DeleteCategory(long catelogID);
 
 	}
 }
