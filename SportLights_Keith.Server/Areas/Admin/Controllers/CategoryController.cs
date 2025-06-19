@@ -5,6 +5,8 @@ using SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository;
 using SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository.Abstractions;
 using SPORTLIGHTS_SERVER.Authen.Helpers;
 using SPORTLIGHTS_SERVER.Constants;
+using SPORTLIGHTS_SERVER.Entities;
+using SPORTLIGHTS_SERVER.Modules;
 
 namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 {
@@ -26,25 +28,24 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 		#endregion
 		#region Constant
 		private const int PAGE_SIZE = 5;
-		private const string MsgCategoryIsExists = "Loại Hàng Đã Tồn Tại";
-		private const string MsgCategoryNameIsExists = "Loại Hàng Đã Tồn Tại";
-		private const string MsgCategoryNameIsRequired = "Tên Loại Hàng Không Được Để Trống";
-		private const string MsgSuccess = "Create succses";
-		private const string MsgCategoryIsNotExists = "Loại Hàng Không Tồn Tại";
-		private const string MsgHasError = "Có lỗi";
+		private const string MsgCategoryIsExists = "Category already exists";
+		private const string MsgCategoryNameIsExists = "Category name already exists";
+		private const string MsgCategoryNameIsRequired = "Category name is required";
+		private const string MsgSuccess = "Created successfully";
+		private const string MsgCategoryIsNotExists = "Category does not exist";
+		private const string MsgHasError = "An error occurred";
 		#endregion
 
 		[HttpGet("category")]
 		public async Task<IActionResult> GetCategory([FromQuery] ViewFitlerCategory viewData)
-		{
-
+		{ 
 			viewData = new ViewFitlerCategory()
 			{
 				SearchValue = viewData.SearchValue,
 				Page = viewData.Page,
 				PageSize = PAGE_SIZE,
 			};
-			string cacheKey = $"category:{viewData.SearchValue}:{viewData.Page}";
+			string cacheKey = CacheKeyHelper.Category(viewData.SearchValue, viewData.Page);
 
 			var cachedData = await _cache.GetCacheAsync<ViewCategory>(cacheKey);
 			if (cachedData != null)
@@ -151,7 +152,11 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				return BadRequest(MsgHasError);
 			}
 
-			return Ok(MsgSuccess);
+			return Ok(new
+			{
+				response_code = ResponseCodes.NoContent,
+				results = dataView.CategoryId,
+			});
 		}
 
 
@@ -160,8 +165,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 		public ActionResult Delete(long categoryid = 0)
 		{
 			if (categoryid == 0)
-			{
-				// return RedirectToAction("Index");
+			{				
 				return BadRequest(MsgCategoryIsNotExists);
 			}
 
@@ -172,7 +176,11 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				return BadRequest(MsgCategoryIsNotExists);
 			}
 
-			return Ok(MsgSuccess);
+			return Ok(new
+			{
+				response_code = ResponseCodes.NoContent,
+				results = categoryid,			
+			});
 		}
 	}
 }
