@@ -5,11 +5,15 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Suppliers.Abstractions
 {
 	public interface ISupplierRepository
 	{
-		List<Supplier> GetSuppliers(SupplierFilterDto filter);
-		Supplier? GetSupplierById(int id);
-		int CreateSupplier(CreateSupplierDto dto);
-		bool UpdateSupplier(EditSupplierDto dto);
-		bool DeleteSupplier(int id);
-		int Count(SupplierFilterDto filter);
+		Task<bool> CheckCreateSupplier(string supplierName);
+		Task<int> Count(SupplierFilterDto filter);
+		Task<IReadOnlyList<Supplier>> LoadSuppliers(SupplierFilterDto filter);
+		Task<Supplier?> GetSupplierById(int id);
+		Task<int> CreateSupplier(CreateSupplierDto dto);
+		Task<bool> UpdateSupplier(EditSupplierDto dto);
+		Task<bool> DeleteSupplier(int id);
+
+
+
 	}
 }

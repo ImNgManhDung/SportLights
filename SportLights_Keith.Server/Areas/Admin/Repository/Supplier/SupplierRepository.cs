@@ -3,13 +3,34 @@ using SPORTLIGHTS_SERVER.Areas.Admin.DTOs.Suppliers;
 using SPORTLIGHTS_SERVER.Areas.Admin.Repository.Suppliers.Abstractions;
 using SPORTLIGHTS_SERVER.Entities;
 using SPORTLIGHTS_SERVER.Modules;
+using System.Data;
 
 namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Suppliers
 {
 	public class SupplierRepository : ISupplierRepository
 	{
+		public async Task<bool> CheckCreateSupplier(string supplierName)
+		{
+			using (var conn = ConnectDB.LiteCommerceDB())
+			{
+				var sqlCheckCreateSupplier = $@"SELECT SupplierName
+		                  FROM Suppliers
+		                  WHERE SupplierName = @SupplierName";
 
-		public int Count(SupplierFilterDto filter)
+				var parameters = new
+				{
+					SupplierName = supplierName,
+				};
+
+				var command = new CommandDefinition(sqlCheckCreateSupplier, parameters: parameters, flags: CommandFlags.NoCache);
+
+				var supplierInfo = await conn.QueryFirstOrDefaultAsync<Supplier>(command);
+
+				return supplierInfo != null;
+			}
+		}
+
+		public async Task<int> Count(SupplierFilterDto filter)
 		{
 			using (var connection = ConnectDB.LiteCommerceDB())
 			{
@@ -22,11 +43,11 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Suppliers
 					SearchPattern = $"%{filter.SearchValue}%"
 				};
 
-				return connection.ExecuteScalar<int>(sql, parameters);
+				return await connection.ExecuteScalarAsync<int>(sql, parameters);
 			}
 		}
 
-		public int CreateSupplier(CreateSupplierDto dto)
+		public async Task<int> CreateSupplier(CreateSupplierDto dto)
 		{
 			using (var connection = ConnectDB.LiteCommerceDB())
 			{
@@ -49,11 +70,11 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Suppliers
 					dto.Email
 				};
 
-				return connection.ExecuteScalar<int>(sql, parameters);
+				return await connection.ExecuteScalarAsync<int>(sql, parameters);
 			}
 		}
 
-		public bool DeleteSupplier(int id)
+		public async Task<bool> DeleteSupplier(int id)
 		{
 			using (var connection = ConnectDB.LiteCommerceDB())
 			{
@@ -61,20 +82,20 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Suppliers
                                WHERE SupplierId = @SupplierId
                                AND NOT EXISTS (SELECT * FROM Products WHERE SupplierId = @SupplierId)";
 
-				return connection.Execute(sql, new { SupplierId = id }) > 0;
+				return await connection.ExecuteAsync(sql, new { SupplierId = id }) > 0;
 			}
 		}
 
-		public Supplier? GetSupplierById(int id)
+		public async Task<Supplier?> GetSupplierById(int id)
 		{
 			using (var connection = ConnectDB.LiteCommerceDB())
 			{
-				string sql = "SELECT * FROM Suppliers WHERE SupplierId = @SupplierId";
-				return connection.QueryFirstOrDefault<Supplier>(sql, new { SupplierId = id });
+				string sql = "SELECT SupplierId, SupplierName, ContactName, Provice, Address, Phone, Email FROM Suppliers WHERE SupplierId = @SupplierId";
+				return await connection.QueryFirstOrDefaultAsync<Supplier>(sql, new { SupplierId = id });
 			}
 		}
 
-		public List<Supplier> GetSuppliers(SupplierFilterDto filter)
+		public async Task<IReadOnlyList<Supplier>> LoadSuppliers(SupplierFilterDto filter)
 		{
 			using (var connection = ConnectDB.LiteCommerceDB())
 			{
@@ -98,11 +119,12 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Suppliers
 					SearchPattern = $"%{filter.SearchValue}%"
 				};
 
-				return connection.Query<Supplier>(sql, parameters).ToList();
+				var result = await connection.QueryAsync<Supplier>(sql, parameters);
+				return result.ToList();
 			}
 		}
 
-		public bool UpdateSupplier(EditSupplierDto dto)
+		public async Task<bool> UpdateSupplier(EditSupplierDto dto)
 		{
 			using (var connection = ConnectDB.LiteCommerceDB())
 			{
@@ -129,8 +151,9 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Suppliers
 					dto.Email
 				};
 
-				return connection.Execute(sql, parameters) > 0;
+				return await connection.ExecuteAsync(sql, parameters) > 0;
 			}
 		}
+		
 	}
 }
