@@ -12,7 +12,7 @@ using System.Reflection;
 
 namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 {
-	//[Authorize(Roles = WebUserRoles.Administrator)]
+	[Authorize(Roles = WebUserRoles.Administrator)]
 	[Route("api/v1/admin")]
 	[ApiController]
 	public class CustomerController : ControllerBase
@@ -128,6 +128,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 			{
 				response_code = ResponseCodes.NoContent,
 				customer_id = customerid,
+				results = MsgSuccess
 			});
 		}
 
@@ -145,6 +146,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 			{
 				response_code = ResponseCodes.NoContent,
 				customer_id = customerId,
+				results = MsgSuccess
 			});
 		}
 	}

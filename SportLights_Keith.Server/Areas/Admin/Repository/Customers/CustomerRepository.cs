@@ -9,7 +9,6 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CustomerRepository
 {
 	public class CustomerRepository : ICustomerRepository
 	{
-
 		public int Count(CustomerFilterDto filter)
 		{
 			int count = 0;
@@ -27,7 +26,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CustomerRepository
 			return count;
 		}
 
-		public int CreateCustomer(CreateCustomerDto dto)
+		public async Task<int> CreateCustomer(CreateCustomerDto dto)
 		{
 			int id = 0;
 			using (var connection = ConnectDB.LiteCommerceDB())
@@ -50,65 +49,94 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CustomerRepository
 					dto.Email,
 					dto.IsLocked
 				};
-				id = connection.ExecuteScalar<int>(sql: sql, param: parameters, commandType: CommandType.Text);
+				id = await connection.ExecuteScalarAsync<int>(sql: sql, param: parameters, commandType: CommandType.Text);
 			}
 			return id;
 		}
 
-		public bool DeleteCustomer(int id)
+		public async Task<bool> DeleteCustomer(int id)
 		{
 			bool result;
 			using (var connection = ConnectDB.LiteCommerceDB())
 			{
 				var sql = @"DELETE FROM Customers 
                             WHERE CustomerId = @customerId AND NOT EXISTS
-                            (SELECT * FROM Orders WHERE CustomerId = @customerId)";
-				result = connection.Execute(sql: sql, param: new { customerId = id }, commandType: CommandType.Text) > 0;
+                            (SELECT CustomerId FROM Orders WHERE CustomerId = @customerId)";
+				result = await connection.ExecuteAsync(sql: sql, param: new { customerId = id }, commandType: CommandType.Text) > 0;
 			}
 			return result;
 		}
 
-		public Customer? GetCustomerById(int id)
+		public async Task<Customer?> GetCustomerById(int id)
 		{
 			Customer? customer;
 			using (var connection = ConnectDB.LiteCommerceDB())
 			{
 				var sql = "SELECT * FROM Customers WHERE CustomerId = @customerId";
-				customer = connection.QueryFirstOrDefault<Customer>(sql: sql, param: new { customerId = id }, commandType: CommandType.Text);
+				customer = await connection.QueryFirstOrDefaultAsync<Customer>(sql: sql, param: new { customerId = id }, commandType: CommandType.Text);
 			}
 			return customer;
 		}
 
-		public List<Customer> GetCustomers(CustomerFilterDto filter)
+		public async Task<IReadOnlyList<Customer>> LoadCustomers(CustomerFilterDto filter)
 		{
-			List<Customer> customers;
-			string searchValue = filter.SearchValue ?? "";
+			var customers = new List<Customer>();
+
+			string searchValue = filter.SearchValue ?? string.Empty;
 			if (!string.IsNullOrEmpty(searchValue))
-				searchValue = "%" + searchValue + "%";
+			{
+				searchValue = $"%{searchValue}%";
+			}
 
 			using (var connection = ConnectDB.LiteCommerceDB())
 			{
-				var sql = @"WITH cte AS (
-                                SELECT *, ROW_NUMBER() OVER (ORDER BY CustomerName) AS RowNumber
-                                FROM Customers
-                                WHERE (@searchValue = N'') OR (CustomerName LIKE @searchValue)
-                            )
-                            SELECT * FROM cte
-                            WHERE (@PageSize = 0)
-                               OR (RowNumber BETWEEN (@Page - 1) * @PageSize + 1 AND @Page * @PageSize)
-                            ORDER BY RowNumber";
+				const string sql = @"
+	WITH cte AS (
+		SELECT 
+			CustomerID,
+			CustomerName,
+			ContactName,
+			Province,
+			Address,
+			Phone,
+			Email,
+			Password,
+			IsLocked,
+			ROW_NUMBER() OVER (ORDER BY CustomerName) AS RowNumber
+		FROM Customers
+		WHERE (@searchValue = '') OR (CustomerName LIKE @searchValue)
+	)
+	SELECT 
+		CustomerID,
+		CustomerName,
+		ContactName,
+		Province,
+		Address,
+		Phone,
+		Email,
+		Password,
+		IsLocked
+	FROM cte
+	WHERE (@pageSize = 0)
+		OR (RowNumber BETWEEN (@page - 1) * @pageSize + 1 AND @page * @pageSize)
+	ORDER BY RowNumber;";
+
 				var parameters = new
 				{
-					Page = filter.Page,
-					PageSize = filter.PageSize,
+					page = filter.Page,
+					pageSize = filter.PageSize,
 					searchValue
 				};
-				customers = connection.Query<Customer>(sql: sql, param: parameters, commandType: CommandType.Text).ToList();
+
+				var result = await connection.QueryAsync<Customer>(sql, parameters, commandType: CommandType.Text);
+				customers = result?.ToList() ?? new List<Customer>();
 			}
-			return customers ?? new List<Customer>();
+
+			return customers;
 		}
 
-		public bool UpdateCustomer(EditCustomerDto dto)
+
+		public async Task<bool> UpdateCustomer(EditCustomerDto dto)
 		{
 			bool result;
 			using (var connection = ConnectDB.LiteCommerceDB())
@@ -136,7 +164,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CustomerRepository
 					dto.Email,
 					dto.IsLocked
 				};
-				result = connection.Execute(sql: sql, param: parameters, commandType: CommandType.Text) > 0;
+				result = await connection.ExecuteAsync(sql: sql, param: parameters, commandType: CommandType.Text) > 0;
 			}
 			return result;
 		}

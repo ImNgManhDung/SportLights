@@ -5,22 +5,16 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Customers.Abstractions
 {
 	public interface ICustomerRepository
 	{
-		// Lấy danh sách khách hàng có phân trang + filter
-		List<Customer> GetCustomers(CustomerFilterDto filter);
+		Task<IReadOnlyList<Customer>> LoadCustomers(CustomerFilterDto filter);
 
-		// Đếm tổng số khách hàng (phục vụ phân trang)
 		int Count(CustomerFilterDto filter);
 
-		// Lấy chi tiết 1 khách hàng
-		Customer? GetCustomerById(int id);
+		Task<Customer?> GetCustomerById(int id);
 
-		// Tạo khách hàng mới
-		int CreateCustomer(CreateCustomerDto customer);
+		Task<int> CreateCustomer(CreateCustomerDto customer);
 
-		// Cập nhật thông tin khách hàng
-		bool UpdateCustomer(EditCustomerDto customer);
+		Task<bool> UpdateCustomer(EditCustomerDto customer);
 
-		// Xóa khách hàng
-		bool DeleteCustomer(int id);
+		Task<bool> DeleteCustomer(int id);
 	}
 }
