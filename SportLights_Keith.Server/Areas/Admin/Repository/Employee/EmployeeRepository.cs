@@ -3,6 +3,7 @@ using SPORTLIGHTS_SERVER.Areas.Admin.DTOs.Employees;
 using SPORTLIGHTS_SERVER.Areas.Admin.Repository.Employees.Abstractions;
 using SPORTLIGHTS_SERVER.Entities;
 using SPORTLIGHTS_SERVER.Modules;
+using System.Data;
 
 namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Employees
 {
@@ -25,7 +26,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Employees
 			return count;
 		}
 
-		public int CreateEmployee(CreateEmployeeDto dto)
+		public async Task<int> CreateEmployee(CreateEmployeeDto dto)
 		{
 			int id = 0;
 			using (var connection = ConnectDB.LiteCommerceDB())
@@ -49,34 +50,36 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Employees
 					dto.IsWorking
 				};
 
-				id = connection.ExecuteScalar<int>(sql, parameters);
+				id = await connection.ExecuteScalarAsync<int>(sql, parameters);
 			}
 
 			return id;
 		}
 
-		public bool DeleteEmployee(int id)
+		public async Task<bool> DeleteEmployee(int employeeId)
 		{
 			using (var connection = ConnectDB.LiteCommerceDB())
 			{
 				var sql = @"DELETE FROM Employees 
 								WHERE EmployeeId = @EmployeeId 
-								AND NOT EXISTS(SELECT * FROM Orders WHERE EmployeeId = @EmployeeId)";
-				var affected = connection.Execute(sql, new { EmployeeId = id });
+								AND NOT EXISTS(SELECT EmployeeId FROM Orders WHERE EmployeeId = @EmployeeId)";
+				var affected = await connection.ExecuteAsync(sql, new { EmployeeId = employeeId });
 				return affected > 0;
 			}
 		}
 
-		public Employee GetEmployeeById(int id)
+		public async Task<Employee?> GetEmployeeById(int employeeId)
 		{
+			Employee? customer;
 			using (var connection = ConnectDB.LiteCommerceDB())
 			{
-				var sql = @"SELECT * FROM Employees WHERE EmployeeId = @EmployeeId";
-				return connection.QueryFirstOrDefault<Employee>(sql, new { EmployeeId = id });
+				var sql = @"SELECT EmployeeId, FullName, BirthDate, Address, Phone, Email, Photo, IsWorking FROM Employees WHERE EmployeeId = @EmployeeId";
+				 customer = await connection.QueryFirstOrDefaultAsync<Employee>(sql, new { EmployeeId = employeeId }, commandType: CommandType.Text);
 			}
+			return customer;
 		}
 
-		public List<Employee> GetEmployees(EmployeeFilterDto filter)
+		public async Task<IReadOnlyList<Employee>> LoadEmployees(EmployeeFilterDto filter)
 		{
 			List<Employee> employees;
 			string searchValue = filter.SearchValue ?? "";
@@ -103,13 +106,13 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Employees
 					searchValue = searchValue
 				};
 
-				employees = connection.Query<Employee>(sql, parameters).ToList();
+				employees = (await connection.QueryAsync<Employee>(sql, parameters)).ToList();
 			}
 
 			return employees;
 		}
 
-		public bool UpdateEmployee(EditEmployeeDto dto)
+		public async Task<bool> UpdateEmployee(EditEmployeeDto dto)
 		{
 			using (var connection = ConnectDB.LiteCommerceDB())
 			{
@@ -139,7 +142,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Employees
 					dto.IsWorking
 				};
 
-				return connection.Execute(sql, parameters) > 0;
+				return await connection.ExecuteAsync(sql, parameters) > 0;
 			}
 		}
 	}
