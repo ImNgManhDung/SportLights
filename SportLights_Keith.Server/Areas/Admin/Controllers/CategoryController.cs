@@ -120,16 +120,16 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 		}
 
 		[HttpPut("{categoryid}")]
-		public async Task<ActionResult> Edit(CreateCategoryDto dataView)
+		public async Task<ActionResult> Edit(EditCategoryDto dataView)
 		{
 			if (dataView == null)
 			{
 				return BadRequest(MsgHasError);
 			}
 
-			var catelogProduct = _categoryRepo.GetCategorys(dataView.CategoryId);
+			var category = _categoryRepo.GetCategorys(dataView.CategoryId);
 
-			if (catelogProduct == null)
+			if (category == null)
 			{
 				return BadRequest(MsgCategoryIsNotExists);
 
@@ -162,14 +162,14 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 		[HttpDelete("{categoryid}")]
 		public async Task<ActionResult> Delete(long categoryid = 0)
 		{
-			if (categoryid == 0)
+			if (categoryid <= 0)
 			{				
 				return BadRequest(MsgCategoryIsNotExists);
 			}
 
-			var catelogProduct = await _categoryRepo.DeleteCategory(categoryid);
+			var isDeleted = await _categoryRepo.DeleteCategory(categoryid);
 
-			if (!catelogProduct)
+			if (!isDeleted)
 			{
 				return BadRequest(MsgCategoryIsNotExists);
 			}
