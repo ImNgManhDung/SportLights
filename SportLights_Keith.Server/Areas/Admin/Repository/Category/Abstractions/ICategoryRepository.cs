@@ -6,9 +6,9 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository.Abstracti
 
 	public interface ICategoryRepository
 	{
-		IReadOnlyList<Category> GetCategory();
+		Task<IReadOnlyList<Category>> GetCategory();
 
-		IReadOnlyList<Category> LoadCategory(ViewFitlerCategory viewData);
+		Task<IReadOnlyList<Category>> LoadCategory(ViewFitlerCategory viewData);
 
 		int Count(ViewFitlerCategory viewData);
 
@@ -18,7 +18,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository.Abstracti
 
 		Task<bool> CreateCategory(CreateCategoryDto dataDto);
 
-		bool UpdateCategory(CreateCategoryDto dataDto);
+		bool UpdateCategory(EditCategoryDto dataDto);
 
 		Task<bool> DeleteCategory(long catelogID);
 

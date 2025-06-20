@@ -65,7 +65,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				CurrentPage = viewData.Page,
 				CurrentPageSize = viewData.PageSize,
 				TotalRow = _categoryRepo.Count(viewData),
-				Data = _categoryRepo.LoadCategory(viewData),
+				Data = await _categoryRepo.LoadCategory(viewData),
 			};
 
 			await _cache.SetCacheAsync(cacheKey, model, TimeSpan.FromMinutes(5));

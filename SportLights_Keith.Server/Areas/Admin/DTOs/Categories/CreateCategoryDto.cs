@@ -6,7 +6,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.DTOs.Categories
 {
 	public class CreateCategoryDto
 	{
-		public int CategoryId { get; set; }
+	
 
 		[Display(Name = "Loại Hang")]
 		[Required(ErrorMessage = "Yêu cầu nhập dữ liệu {0}")]

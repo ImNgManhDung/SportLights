@@ -26,7 +26,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository
 
 				var command = new CommandDefinition(sqlCheckCreateCategory, parameters: parameters, flags: CommandFlags.NoCache);
 
-				var catelogNameInfo = conn.QueryFirstOrDefaultAsync<Category>(command);
+				var catelogNameInfo = await conn.QueryFirstOrDefaultAsync<Category>(command);
 
 				return catelogNameInfo != null;
 			}
@@ -62,18 +62,18 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository
 			{
 				if (conn.State == ConnectionState.Closed)
 				{
-					conn.Open();
+					await conn.OpenAsync();
 				}
 
 				using (var trans = conn.BeginTransaction())
 				{
 					try
 					{
-						var sqlInsertCategory = $@"INSERT INTO Categories(
-		                              CategoryName, Description
-		                          ) VALUES (
-		                              @CategoryName,@Description
-		                          )";
+						var sqlInsertCategory = @"INSERT INTO Categories(
+					CategoryName, Description
+				) VALUES (
+					@CategoryName, @Description
+				)";
 
 						var parameters = new
 						{
@@ -81,8 +81,15 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository
 							Description = dataDto.CategoryDescription
 						};
 
-						var command = new CommandDefinition(sqlInsertCategory, parameters: parameters, flags: CommandFlags.NoCache, transaction: trans);
-						conn.Execute(command);
+						var command = new CommandDefinition(
+							sqlInsertCategory,
+							parameters: parameters,
+							flags: CommandFlags.NoCache,
+							transaction: trans,
+							cancellationToken: default
+						);
+
+						await conn.ExecuteAsync(command);
 						trans.Commit();
 						return true;
 					}
@@ -95,7 +102,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository
 			}
 		}
 
-		bool ICategoryRepository.DeleteCategory(long categoryId)
+		public async Task<bool> DeleteCategory(long categoryId)
 		{
 			int result = 0;
 
@@ -110,13 +117,13 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository
 				};
 
 				var command = new CommandDefinition(deleteCategorySql, parameters: parameters, flags: CommandFlags.NoCache);
-				result = conn.Execute(command);
+				result = await conn.ExecuteAsync(command);
 			}
 
 			return result == 1;
 		}
 
-		public IReadOnlyList<Category> GetCategory()
+		public async Task<IReadOnlyList<Category>> GetCategory()
 		{
 			using (var conn = ConnectDB.LiteCommerceDB())
 			{
@@ -125,12 +132,12 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository
 		                      CategoryName,
 		                      Description
 		                      FROM  Categories";
-				var categories = conn.Query<Category>(sqlGetCategories).ToList();
+				var categories = (await conn.QueryAsync<Category>(sqlGetCategories)).ToList();
 				return categories;
 			}
 		}
 
-		public Category GetCategorys(long categoryId)
+		public async Task<Category> GetCategorys(long categoryId)
 		{
 			using (var conn = ConnectDB.LiteCommerceDB())
 			{
@@ -146,39 +153,12 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository
 				};
 
 				var command = new CommandDefinition(sqlGetCategories, parameters: param, flags: CommandFlags.NoCache);
-				var data = conn.QueryFirstOrDefault<Category>(command);
+				var data = await conn.QueryFirstOrDefaultAsync<Category>(command);
 				return data;
 			}
-		}
+		}	
 
-		//IReadOnlyList<Category> GetCategory()
-		//{
-		//	using (var conn = ConnectDB.LiteCommerceDB())
-		//	{
-		//		var sqlLoadCategorys = $@"{GenCategorytPaginateCTE()}
-		//                  /* Call CTE */
-		//		    SELECT CategoryId 
-		//                  , CategoryName
-		//                  , Description    
-		//                  FROM CategorytPaginateCTE 
-		//                  WHERE (@Page = 1 AND @PageSize = 0) /* No Paginate */
-		//            OR RowNum BETWEEN ((@Page - 1) * @PageSize + 1) AND (@Page * @PageSize) /* Paginate via Page and PageSize */";
-
-		//		var param = new
-		//		{
-		//			SearchValue = $"%{viewData.SearchValue}%",
-		//			Page = viewData.Page,
-		//			PageSize = viewData.PageSize,
-		//		};
-
-		//		var command = new CommandDefinition(sqlLoadCategorys, parameters: param, flags: CommandFlags.NoCache);
-
-		//		var data = conn.Query<Category>(command).ToList();
-		//		return data;
-		//	}
-		//}
-
-		public bool UpdateCategory(CreateCategoryDto dataDto)
+		public bool UpdateCategory(EditCategoryDto dataDto)
 		{
 			int result = 0;
 
@@ -216,11 +196,8 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository
 					}
 				}
 			}
-
 			return result == 1;
 		}
-
-
 
 		public IReadOnlyList<Category> LoadCategory(ViewFitlerCategory viewData)
 		{
@@ -248,7 +225,6 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository
 				return data;
 			}
 		}
-
 
 		private static string GenCategorytPaginateCTE()
 		{
