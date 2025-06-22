@@ -8,6 +8,8 @@ using SPORTLIGHTS_SERVER.Authen.Helpers;
 using SPORTLIGHTS_SERVER.Constants;
 using SPORTLIGHTS_SERVER.Entities;
 using SPORTLIGHTS_SERVER.Modules;
+using System.Data;
+using System.Reflection;
 
 namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 {
@@ -59,6 +61,8 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				});
 			}
 
+			var data = await _categoryRepo.LoadCategory(viewData);
+
 			var model = new ViewCategory()
 			{
 				SearchValue = viewData.SearchValue,
@@ -66,9 +70,11 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				CurrentPageSize = viewData.PageSize,
 				TotalRow = _categoryRepo.Count(viewData),
 				Data = await _categoryRepo.LoadCategory(viewData),
-			};
+			};	
 
-			await _cache.SetCacheAsync(cacheKey, model, TimeSpan.FromMinutes(5));
+			var relatedIds = data.Select(c => c.CategoryID).ToList();			
+
+			await _cache.SetCacheWithIdsAsync(cacheKey, model, relatedIds, TimeSpan.FromMinutes(5));
 
 			return Ok(new
 			{
@@ -105,7 +111,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				{
 					return BadRequest(MsgHasError);
 				}
-
+				
 				return Ok(new
 				{
 					response_code = ResponseCodes.Created,
@@ -152,6 +158,8 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				return BadRequest(MsgHasError);
 			}
 
+			await _cache.InvalidateCacheByAffectedIdAsync(dataView.CategoryId);
+
 			return Ok(new
 			{
 				response_code = ResponseCodes.NoContent,
@@ -160,7 +168,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 		}
 
 		[HttpDelete("{categoryid}")]
-		public async Task<ActionResult> Delete(long categoryid = 0)
+		public async Task<ActionResult> Delete(int categoryid = 0)
 		{
 			if (categoryid <= 0)
 			{				
@@ -173,6 +181,8 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 			{
 				return BadRequest(MsgCategoryIsNotExists);
 			}
+
+			await _cache.InvalidateCacheByAffectedIdAsync(categoryid);
 
 			return Ok(new
 			{

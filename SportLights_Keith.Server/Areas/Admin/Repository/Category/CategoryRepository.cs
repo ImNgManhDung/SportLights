@@ -199,7 +199,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository
 			return result == 1;
 		}
 
-		public IReadOnlyList<Category> LoadCategory(ViewFitlerCategory viewData)
+		public async Task<IReadOnlyList<Category>> LoadCategory(ViewFitlerCategory viewData)
 		{
 			using (var conn = ConnectDB.LiteCommerceDB())
 			{
@@ -221,7 +221,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository
 
 				var command = new CommandDefinition(sqlloadcategorys, parameters: param, flags: CommandFlags.NoCache);
 
-				var data = conn.Query<Category>(command).ToList();
+				var data = (await conn.QueryAsync<Category>(command)).ToList();
 				return data;
 			}
 		}

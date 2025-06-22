@@ -12,7 +12,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository.Abstracti
 
 		int Count(ViewFitlerCategory viewData);
 
-		Category GetCategorys(long id);
+		Task<Category> GetCategorys(long categoryId);
 
 		Task<bool> CheckCreateCategory(string catelogName);
 
@@ -20,7 +20,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.CategoryRepository.Abstracti
 
 		bool UpdateCategory(EditCategoryDto dataDto);
 
-		Task<bool> DeleteCategory(long catelogID);
+		Task<bool> DeleteCategory(long categoryId);
 
 	}
 }
