@@ -7,13 +7,11 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.DTOs.Categories
 	public class CreateCategoryDto
 	{
 	
-
-		[Display(Name = "Loại Hang")]
+		[Display(Name = "CategoryName")]
 		[Required(ErrorMessage = "Yêu cầu nhập dữ liệu {0}")]
-		[StringLength(ValidatesConstant.MAX_FOOD_NAME, MinimumLength = ValidatesConstant.MIN_FOOD_NAME,
-			ErrorMessage = "{0} tối thiểu {2} kí tự và tối đa {1} kí tự")]
-		[MustBeStringAndDigitValidation(ErrorMessage = "{0} yêu cầu phải là kiểu ký tự dạng chữ hoặc dạng số")]
-		public string? CategoryName { get; set; }
+		[StringLength(ValidatesConstant.MAX_NAME, MinimumLength = ValidatesConstant.MIN_NAME,
+			ErrorMessage = "{0} tối thiểu {2} kí tự và tối đa {1} kí tự")]		
+		public string? CategoryName { get; set; }			
 		public string? CategoryDescription { get; set; }
 	}
 }
