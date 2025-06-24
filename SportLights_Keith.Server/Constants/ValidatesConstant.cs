@@ -16,8 +16,8 @@
 		public const int MAX_AREATEXTBOX = 300;
 		public const int MIN_AREATEXTBOX = 1;
 
-		public const int MIN_FOOD_NAME = 3;
-		public const int MAX_FOOD_NAME = 300;
+		public const int MIN_NAME = 3;
+		public const int MAX_NAME = 300;
 
 		public const int MIN_QUANTITY_FOOD = 1;
 		public const int MAX_QUANTITY_FOOD = 5000;
