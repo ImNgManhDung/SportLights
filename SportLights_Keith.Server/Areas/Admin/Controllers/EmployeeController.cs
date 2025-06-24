@@ -59,7 +59,6 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				});
 			}
 
-
 			var result = new PaginatedEmployeeDto
 			{
 				SearchValue = viewData.SearchValue,
@@ -69,7 +68,11 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				Data = await _employeeRepo.LoadEmployees(viewData)
 			};
 
-			await _cache.SetCacheAsync(cacheKey, result, TimeSpan.FromMinutes(5));
+			var relatedIds = result.Data.Select(e => e.EmployeeId).ToList();
+
+			await _cache.SetCacheWithIdsAsync(cacheKey, result, relatedIds, TimeSpan.FromMinutes(5));	
+
+			//await _cache.SetCacheAsync(cacheKey, result, TimeSpan.FromMinutes(5));
 			
 			return Ok(new
 			{
@@ -189,6 +192,8 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 			if (!IsUpdated)
 				return StatusCode(500, MsgError);
 
+			await _cache.InvalidateCacheByAffectedIdAsync(editEmployeeDto.EmployeeId);
+
 			return Ok(new
 			{
 				response_code = ResponseCodes.NoContent,
@@ -206,6 +211,8 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 			var deleted = await _employeeRepo.DeleteEmployee(employeeId);
 			if (!deleted)
 				return BadRequest(MsgEmployeeNotFound);
+				
+			await _cache.InvalidateCacheByAffectedIdAsync(employeeId);
 
 			return Ok(new
 			{
