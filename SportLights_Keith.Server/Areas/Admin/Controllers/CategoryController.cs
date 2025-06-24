@@ -30,13 +30,14 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 
 		#endregion
 		#region Constant
-		private const int PAGE_SIZE = 5;
+		private const int PAGE_SIZE = 10;
 		private const string MsgCategoryIsExists = "Category already exists";
 		private const string MsgCategoryNameIsExists = "Category name already exists";
 		private const string MsgCategoryNameIsRequired = "Category name is required";
 		private const string MsgSuccess = "Created successfully";
 		private const string MsgCategoryIsNotExists = "Category does not exist";
 		private const string MsgHasError = "An error occurred";
+		private const string MsgCategoryrNotFound = "Category not found";
 		#endregion
 
 		[HttpGet("category")]
@@ -69,7 +70,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				CurrentPage = viewData.Page,
 				CurrentPageSize = viewData.PageSize,
 				TotalRow = _categoryRepo.Count(viewData),
-				Data = await _categoryRepo.LoadCategory(viewData),
+				Data = data,
 			};	
 
 			var relatedIds = data.Select(c => c.CategoryID).ToList();			
@@ -82,6 +83,29 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				results = model,
 				source = "db"
 			});
+		}
+
+		[HttpGet("category/{categoryid}")]
+		public async Task<IActionResult> GetCategoryById(int categoryid)
+		{
+
+			var customer = await _categoryRepo.GetCategorys(categoryid);
+			if (customer == null)
+			{
+				return NotFound(new
+				{
+					response_code = ResponseCodes.NotFound,
+					results = MsgCategoryrNotFound
+				});
+			}
+
+			return Ok(new
+			{
+				response_code = ResponseCodes.Success,
+				results = customer
+			});
+
+			
 		}
 
 		[HttpPost("category")]
@@ -164,6 +188,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 			{
 				response_code = ResponseCodes.NoContent,
 				category_id = dataView.CategoryId,
+				results = MsgSuccess
 			});
 		}
 
@@ -187,7 +212,8 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 			return Ok(new
 			{
 				response_code = ResponseCodes.NoContent,
-				category_id = categoryid,					
+				category_id = categoryid,
+				results = MsgSuccess
 			});
 		}
 	}
