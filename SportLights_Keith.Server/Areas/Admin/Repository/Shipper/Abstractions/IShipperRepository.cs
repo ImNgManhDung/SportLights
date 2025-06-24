@@ -5,11 +5,16 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Shippers.Abstractions
 {
 	public interface IShipperRepository
 	{
-		List<Shipper> GetShippers(ShipperFilterDto filter);
-		Shipper? GetShipperById(int id);
-		int CreateShipper(CreateShipperDto dto);
-		bool UpdateShipper(EditShipperDto dto);
-		bool DeleteShipper(int id);
-		int Count(ShipperFilterDto filter);
+		Task<int> Count(ShipperFilterDto filter);
+
+		Task<int> CreateShipper(CreateShipperDto dto);
+
+		Task<bool> DeleteShipper(int id);
+
+		Task<Shipper?> GetShipperById(int id);
+
+		Task<List<Shipper>> GetShippers(ShipperFilterDto filter);
+
+		Task<bool> UpdateShipper(EditShipperDto dto);
 	}
 }
