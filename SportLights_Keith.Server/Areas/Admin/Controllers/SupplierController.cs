@@ -10,7 +10,7 @@ using SPORTLIGHTS_SERVER.Modules;
 
 namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 {
-	//[Authorize(Roles = WebUserRoles.Administrator)]
+	// [Authorize(Roles = WebUserRoles.Administrator)]
 	[Route("api/v1/admin")]
 	[ApiController]
 	public class SupplierController : ControllerBase
@@ -28,9 +28,9 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 		private const string MsgSuccess = "Success";
 		private const string MsgError = "An error occurred";
 		private const string MsgIdMismatch = "ID does not match";
-		private const string MsgCreateFailed = "Failed to create supplier.";	
-		private const string MsgHasError = "An error occurred"; 
-		private const string MsgSupplierNameIsRequired = "An error occurred";
+		private const string MsgCreateFailed = "Failed to create supplier.";
+		private const string MsgHasError = "An error occurred";
+		private const string MsgSupplierNameIsRequired = "Supplier name is required";
 
 		[HttpGet("supplier")]
 		public async Task<IActionResult> GetSuppliers([FromQuery] SupplierFilterDto viewData)
@@ -89,27 +89,21 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 		}
 
 		[HttpPost("supplier")]
-		public async Task<IActionResult> CreateSupplier([FromBody] CreateSupplierDto model)
+		public async Task<IActionResult> CreateSupplier([FromBody] CreateSupplierDto viewData)
 		{
-			if (model == null)
-			{
+			if (viewData == null)
 				return BadRequest(MsgHasError);
-			}
 
-			if (string.IsNullOrEmpty(model.SupplierName))
-			{
+			if (string.IsNullOrEmpty(viewData.SupplierName))
 				return BadRequest(MsgSupplierNameIsRequired);
-			}
 
 			try
 			{
-				var isCheckSupplierIsExists = await _supplierRepo.CheckCreateSupplier(model.SupplierName);
-				if (isCheckSupplierIsExists)
-				{
+				var isExists = await _supplierRepo.CheckCreateSupplier(viewData.SupplierName);
+				if (isExists)
 					return BadRequest(MsgSupplierNotFound);
-				}
 
-				var newId = await _supplierRepo.CreateSupplier(model);
+				var newId = await _supplierRepo.CreateSupplier(viewData);
 				if (newId <= 0)
 				{
 					return BadRequest(new
@@ -133,18 +127,20 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 		}
 
 		[HttpPut("supplier/{supplierid}")]
-		public async Task<IActionResult> UpdateSupplier(int supplierid, [FromBody] EditSupplierDto dto)
+		public async Task<IActionResult> UpdateSupplier(int supplierid, [FromBody] EditSupplierDto viewData)
 		{
-			if (supplierid != dto.SupplierId)
+			if (supplierid != viewData.SupplierId)
 				return BadRequest(MsgIdMismatch);
 
 			var existing = await _supplierRepo.GetSupplierById(supplierid);
 			if (existing == null)
 				return NotFound(MsgSupplierNotFound);
 
-			var success = await _supplierRepo.UpdateSupplier(dto);
+			var success = await _supplierRepo.UpdateSupplier(viewData);
 			if (!success)
 				return StatusCode(500, MsgError);
+
+			await _cache.InvalidateCacheByAffectedIdAsync(viewData.SupplierId);
 
 			return Ok(new
 			{
@@ -163,6 +159,8 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 			var deleted = await _supplierRepo.DeleteSupplier(supplierid);
 			if (!deleted)
 				return BadRequest(MsgSupplierNotFound);
+
+			await _cache.InvalidateCacheByAffectedIdAsync(supplierid);
 
 			return Ok(new
 			{
