@@ -8,6 +8,7 @@ using SPORTLIGHTS_SERVER.Authen.Helpers;
 using SPORTLIGHTS_SERVER.Constants;
 using SPORTLIGHTS_SERVER.Entities;
 using SPORTLIGHTS_SERVER.Modules;
+using System.Data;
 using System.Reflection;
 
 namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
@@ -57,16 +58,22 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				});
 			}
 
+			var data = await _customerRepo.LoadCustomers(viewData);
+
 			var result = new PaginatedCustomerDto
 			{
 				SearchValue = viewData.SearchValue,
 				CurrentPage = viewData.Page,
 				CurrentPageSize = viewData.PageSize,
 				TotalRow = _customerRepo.Count(viewData),
-				Data = await _customerRepo.LoadCustomers(viewData)
+				Data = data
 			};
 
-			await _cache.SetCacheAsync(cacheKey, result, TimeSpan.FromMinutes(5));
+			var relatedIds = data.Select(c => c.CustomerId).ToList();
+
+			await _cache.SetCacheWithIdsAsync(cacheKey, result, relatedIds, TimeSpan.FromMinutes(5));
+
+			//await _cache.SetCacheAsync(cacheKey, result, TimeSpan.FromMinutes(5));
 
 			return Ok(new
 			{
@@ -111,18 +118,21 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 		}
 
 		[HttpPut("customer/{customerid}")]
-		public async Task<IActionResult> UpdateCustomer(int customerid, [FromBody] EditCustomerDto customer)
+		public async Task<IActionResult> UpdateCustomer(int customerid, [FromBody] EditCustomerDto dataview)
 		{
-			if (customer == null || customerid != customer.CustomerId)
+			if (dataview == null || customerid != dataview.CustomerId)
 				return BadRequest(MsgError);
 
 			var existingCustomer = await _customerRepo.GetCustomerById(customerid);
 			if (existingCustomer == null)
 				return NotFound(MsgCustomerNotFound);
 
-			var isUpdated = await _customerRepo.UpdateCustomer(customer);
+			var isUpdated = await _customerRepo.UpdateCustomer(dataview);
 			if (!isUpdated)
 				return StatusCode(500, MsgError);
+
+
+			await _cache.InvalidateCacheByAffectedIdAsync(dataview.CustomerId);
 
 			return Ok(new
 			{
@@ -141,6 +151,8 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 			var Isdeleted = await _customerRepo.DeleteCustomer(customerId);
 			if (!Isdeleted)
 				return BadRequest(MsgCustomerNotFound);
+
+			await _cache.InvalidateCacheByAffectedIdAsync(customerId);
 
 			return Ok(new
 			{
