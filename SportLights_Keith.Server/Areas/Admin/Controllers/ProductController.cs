@@ -5,48 +5,82 @@ using SPORTLIGHTS_SERVER.Areas.Admin.Repository.Products;
 using SPORTLIGHTS_SERVER.Areas.Admin.Repository.Products.Abstractions;
 using SPORTLIGHTS_SERVER.Authen.Helpers;
 using SPORTLIGHTS_SERVER.Constants;
+using SPORTLIGHTS_SERVER.Modules;
+using System.Data;
 
 namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 {
-	//[Authorize(Roles = WebUserRoles.Administrator)]
+	// [Authorize(Roles = WebUserRoles.Administrator)]
 	[Route("api/v1/admin")]
 	[ApiController]
 	public class ProductController : ControllerBase
 	{
 		private readonly IProductRepository _productRepo = new ProductRepository();
+		private readonly RedisCacheService _cache;
+
+		public ProductController(RedisCacheService cache)
+		{
+			_cache = cache;
+		}
 
 		private const int PAGE_SIZE = 10;
-		private const string MsgProductNotFound = "Sản phẩm không tồn tại";
-		private const string MsgError = "Có lỗi xảy ra";
-		private const string MsgSuccess = "Thành công";
-
+		private const string MsgProductNotFound = "Product Not Found";
+		private const string MsgError = "An error occurred";
+		private const string MsgSuccess = "Success";
+		private const string IdMisMatch = "Id mismatch";
 
 
 		[HttpGet("product")]
-		public IActionResult GetProducts([FromQuery] ProductFilterDto filter)
+		public async Task<IActionResult> GetProducts([FromQuery] ProductFilterDto viewData)
 		{
-			filter.PageSize = PAGE_SIZE;
+			viewData = new ProductFilterDto
+			{
+				SearchValue = viewData.SearchValue,
+				Page = viewData.Page, 
+				PageSize = PAGE_SIZE
+			};		
+
+			string cacheKey = CacheKeyHelper.Product(viewData.SearchValue, viewData.Page);
+
+			var cachedData = await _cache.GetCacheAsync<PaginatedProductDto>(cacheKey);
+			if (cachedData != null)
+			{
+				return Ok(new
+				{
+					response_code = ResponseCodes.Success,
+					results = cachedData,
+					source = "cache"
+				});
+			}
+			var data = await _productRepo.GetProducts(viewData);
 
 			var result = new PaginatedProductDto
 			{
-				SearchValue = filter.SearchValue,
-				CurrentPage = filter.Page,
-				CurrentPageSize = filter.PageSize,
-				TotalRow = _productRepo.CountProducts(filter),
-				Data = _productRepo.GetProducts(filter)
+				SearchValue = viewData.SearchValue,
+				CurrentPage = viewData.Page,
+				CurrentPageSize = viewData.PageSize,
+				TotalRow = await _productRepo.CountProducts(viewData),
+				Data = data
 			};
+
+			var relateId = data.Select(p => p.ProductId).ToList();
+
+			await _cache.SetCacheWithIdsAsync(cacheKey, result ,relateId, TimeSpan.FromMinutes(5));
+
+			//await _cache.SetCacheAsync(cacheKey, result, TimeSpan.FromMinutes(5));
 
 			return Ok(new
 			{
 				response_code = ResponseCodes.Success,
-				results = result
+				results = result,
+				source = "db"
 			});
 		}
 
 		[HttpGet("product/{productId}")]
-		public IActionResult GetProduct(int productId)
+		public async Task<IActionResult> GetProduct(int productId)
 		{
-			var product = _productRepo.GetProductById(productId);
+			var product = await _productRepo.GetProductById(productId);
 			if (product == null)
 				return NotFound(MsgProductNotFound);
 
@@ -58,14 +92,12 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 		}
 
 		[HttpPost("product")]
-		public IActionResult CreateProduct([FromBody] CreateProductDto dto)
+		public async Task<IActionResult> CreateProduct([FromBody] CreateProductDto viewData)
 		{
-			if (dto.CategoryId <= 0)
-			{
+			if (viewData.CategoryId <= 0)
 				return StatusCode(500, MsgError);
-			}
 
-			var newId = _productRepo.CreateProduct(dto);
+			var newId = await _productRepo.CreateProduct(viewData);
 			if (newId <= 0)
 				return StatusCode(500, MsgError);
 
@@ -78,33 +110,47 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 		}
 
 		[HttpPut("product/{productId}")]
-		public IActionResult UpdateProduct(int productId, [FromBody] EditProductDto dto)
+		public async Task<IActionResult> UpdateProduct(int productId, [FromBody] EditProductDto viewData)
 		{
-			if (productId != dto.ProductId)
-				return BadRequest("ID không khớp");
+			if (productId != viewData.ProductId)
+				return BadRequest(IdMisMatch);
 
 			var existing = _productRepo.GetProductById(productId);
 			if (existing == null)
 				return NotFound(MsgProductNotFound);
 
-			var success = _productRepo.UpdateProduct(dto);
+			var success = await _productRepo.UpdateProduct(viewData);
 			if (!success)
 				return StatusCode(500, MsgError);
 
-			return Ok(MsgSuccess);
+			await _cache.InvalidateCacheByAffectedIdAsync(viewData.ProductId);
+
+			return Ok(new
+			{
+				response_code = ResponseCodes.NoContent,
+				product_id = productId,
+				results = MsgSuccess
+			});
 		}
 
 		[HttpDelete("product/{productId}")]
-		public IActionResult DeleteProduct(int productId)
+		public async Task<IActionResult> DeleteProduct(int productId)
 		{
 			if (productId <= 0)
 				return BadRequest(MsgProductNotFound);
 
-			var deleted = _productRepo.DeleteProduct(productId);
+			var deleted = await _productRepo.DeleteProduct(productId);
 			if (!deleted)
 				return BadRequest(MsgProductNotFound);
 
-			return Ok(MsgSuccess);
+			await _cache.InvalidateCacheByAffectedIdAsync(productId);
+
+			return Ok(new
+			{
+				response_code = ResponseCodes.NoContent,
+				product_id = productId,
+				results = MsgSuccess
+			});
 		}
 	}
 }
