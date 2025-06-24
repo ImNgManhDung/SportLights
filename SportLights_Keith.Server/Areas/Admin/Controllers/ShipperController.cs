@@ -5,56 +5,95 @@ using SPORTLIGHTS_SERVER.Areas.Admin.Repository.Shippers;
 using SPORTLIGHTS_SERVER.Areas.Admin.Repository.Shippers.Abstractions;
 using SPORTLIGHTS_SERVER.Authen.Helpers;
 using SPORTLIGHTS_SERVER.Constants;
+using SPORTLIGHTS_SERVER.Modules;
 
 namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 {
-	//[Authorize(Roles = WebUserRoles.Administrator)]
+	// [Authorize(Roles = WebUserRoles.Administrator)]
 	[Route("api/v1/admin")]
 	[ApiController]
 	public class ShipperController : ControllerBase
 	{
 		private readonly IShipperRepository _shipperRepo = new ShipperRepository();
+		private readonly RedisCacheService _cache;
+
+		public ShipperController(RedisCacheService cache)
+		{
+			_cache = cache;
+		}
 
 		private const int PAGE_SIZE = 10;
-		private const string MsgShipperNotFound = "Shipper không tồn tại";
-		private const string MsgError = "Có lỗi xảy ra";
-		private const string MsgSuccess = "Thành công";
+		private const string MsgShipperNotFound = "Shipper Not Found";
+		private const string MsgError = "Error";
+		private const string MsgSuccess = "Success";
+		private const string MsgIDMisMatch = "ID MisMatch";
 
 		[HttpGet("shipper")]
-		public IActionResult GetShippers([FromQuery] ShipperFilterDto filter)
+		public async Task<IActionResult> GetShippers([FromQuery] ShipperFilterDto viewData)
 		{
-			filter.PageSize = PAGE_SIZE;
+			viewData = new ShipperFilterDto
+			{
+				SearchValue = viewData.SearchValue,
+				Page = viewData.Page,
+				PageSize = PAGE_SIZE
+			};
+			
+			string cacheKey = CacheKeyHelper.Shipper(viewData.SearchValue, viewData.Page);
+
+			var cachedData = await _cache.GetCacheAsync<PaginatedShipperDto>(cacheKey);
+			if (cachedData != null)
+			{
+				return Ok(new
+				{
+					response_code = ResponseCodes.Success,
+					results = cachedData,
+					source = "cache"
+				});
+			}
+
+			var data = await _shipperRepo.GetShippers(viewData);
 
 			var result = new PaginatedShipperDto
 			{
-				SearchValue = filter.SearchValue,
-				CurrentPage = filter.Page,
-				CurrentPageSize = filter.PageSize,
-				TotalRow = _shipperRepo.Count(filter),
-				Data = _shipperRepo.GetShippers(filter)
+				SearchValue = viewData.SearchValue,
+				CurrentPage = viewData.Page,
+				CurrentPageSize = viewData.PageSize,
+				TotalRow = await _shipperRepo.Count(viewData),
+				Data = data
 			};
+
+			var relatedId = data.Select(s => s.ShipperID).ToList();
+
+			await _cache.SetCacheWithIdsAsync(cacheKey,result,relatedId,TimeSpan.FromMinutes(5));
+
+			//await _cache.SetCacheAsync(cacheKey, result, TimeSpan.FromMinutes(5));
 
 			return Ok(new
 			{
 				response_code = ResponseCodes.Success,
-				results = result
+				results = result,
+				source = "db"
 			});
 		}
 
 		[HttpGet("shipper/{shipperid}")]
-		public IActionResult GetShipper(int shipperid)
+		public async Task<IActionResult> GetShipper(int shipperid)
 		{
-			var shipper = _shipperRepo.GetShipperById(shipperid);
+			var shipper = await _shipperRepo.GetShipperById(shipperid);
 			if (shipper == null)
 				return NotFound(MsgShipperNotFound);
 
-			return Ok(shipper);
+			return Ok(new
+			{
+				response_code = ResponseCodes.Success,
+				results = shipper
+			});
 		}
 
 		[HttpPost("shipper")]
-		public IActionResult CreateShipper([FromBody] CreateShipperDto dto)
+		public async Task<IActionResult> CreateShipper([FromBody] CreateShipperDto viewData)
 		{
-			var newId = _shipperRepo.CreateShipper(dto);
+			var newId = await _shipperRepo.CreateShipper(viewData);
 			if (newId <= 0)
 				return StatusCode(500, MsgError);
 
@@ -67,33 +106,47 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 		}
 
 		[HttpPut("shipper/{shipperid}")]
-		public IActionResult UpdateShipper(int shipperid, [FromBody] EditShipperDto dto)
+		public async Task<IActionResult> UpdateShipper(int shipperid, [FromBody] EditShipperDto viewData)
 		{
-			if (shipperid != dto.ShipperId)
-				return BadRequest("ID không khớp");
+			if (shipperid != viewData.ShipperId)
+				return BadRequest(MsgIDMisMatch);
 
-			var existing = _shipperRepo.GetShipperById(shipperid);
+			var existing = await _shipperRepo.GetShipperById(shipperid);
 			if (existing == null)
 				return NotFound(MsgShipperNotFound);
 
-			var success = _shipperRepo.UpdateShipper(dto);
+			var success = await _shipperRepo.UpdateShipper(viewData);
 			if (!success)
 				return StatusCode(500, MsgError);
 
-			return Ok(MsgSuccess);
+			await _cache.InvalidateCacheByAffectedIdAsync(viewData.ShipperId);
+
+			return Ok(new
+			{
+				response_code = ResponseCodes.NoContent,
+				shipper_id = shipperid,
+				results = MsgSuccess
+			});
 		}
 
 		[HttpDelete("shipper/{shipperid}")]
-		public IActionResult DeleteShipper(int shipperid)
+		public async Task<IActionResult> DeleteShipper(int shipperid)
 		{
 			if (shipperid <= 0)
 				return BadRequest(MsgShipperNotFound);
 
-			var deleted = _shipperRepo.DeleteShipper(shipperid);
+			var deleted = await _shipperRepo.DeleteShipper(shipperid);
 			if (!deleted)
 				return BadRequest(MsgShipperNotFound);
 
-			return Ok(MsgSuccess);
+			await _cache.InvalidateCacheByAffectedIdAsync(shipperid);
+
+			return Ok(new
+			{
+				response_code = ResponseCodes.NoContent,
+				shipper_id = shipperid,
+				results = MsgSuccess
+			});
 		}
 	}
 }
