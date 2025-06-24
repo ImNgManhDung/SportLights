@@ -11,66 +11,68 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.OrderRepository
 	public class OrderRepository : IOrderRepository
 	{
 
-		public List<Order> GetOrders(OrderFilterDto filter)
+		public async Task<List<Order>> LoadOrders(OrderFilterDto filter)
 		{
 			if (!string.IsNullOrEmpty(filter.SearchValue))
 				filter.SearchValue = "%" + filter.SearchValue + "%";
 
-			using (var connection = ConnectDB.LiteCommerceDB())
-			{
-				var sql = @"SELECT  *
-                    FROM    (
-                            SELECT  o.*,
-                                    c.CustomerName,
-                                    c.ContactName as CustomerContactName,
-                                    c.Address as CustomerAddress,
-                                    c.Email as CustomerEmail,
-                                    e.FullName as EmployeeFullName,
-                                    s.ShipperName,
-                                    s.Phone as ShipperPhone,
-                                    ROW_NUMBER() OVER(ORDER BY o.OrderID DESC) AS RowNumber
-                            FROM    Orders as o
-                                    LEFT JOIN Customers AS c ON o.CustomerID = c.CustomerID
-                                    LEFT JOIN Employees AS e ON o.EmployeeID = e.EmployeeID
-                                    LEFT JOIN Shippers AS s ON o.ShipperID = s.ShipperID
-                            WHERE   (@Status = 0 OR o.Status = @Status)
-                                AND (@SearchValue = N'' OR c.CustomerName LIKE @SearchValue OR s.ShipperName LIKE @SearchValue)
-                            ) AS t
-                    WHERE (@PageSize = 0) OR (t.RowNumber BETWEEN(@Page -1)*@PageSize + 1 AND @Page*@PageSize)
-                    ORDER BY t.RowNumber";
-				var parameters = new
-				{
-					page = filter.Page,
-					pageSize = filter.PageSize,
-					Status = filter.Status,
-					searchValue = filter.SearchValue
-				};
-				return connection.Query<Order>(sql: sql, param: parameters, commandType: CommandType.Text).ToList();
-			}
-		}
+			using var connection = ConnectDB.LiteCommerceDB();
 
-		public Order? GetOrderById(int orderId)
-		{
-			using (var connection = ConnectDB.LiteCommerceDB())
-			{
-				var sql = @"SELECT  o.*,  
+			var sql = @"SELECT  *
+            FROM    (
+                    SELECT  o.*,
                             c.CustomerName,
                             c.ContactName as CustomerContactName,
                             c.Address as CustomerAddress,
                             c.Email as CustomerEmail,
                             e.FullName as EmployeeFullName,
                             s.ShipperName,
-                            s.Phone as ShipperPhone
+                            s.Phone as ShipperPhone,
+                            ROW_NUMBER() OVER(ORDER BY o.OrderID DESC) AS RowNumber
                     FROM    Orders as o
                             LEFT JOIN Customers AS c ON o.CustomerID = c.CustomerID
                             LEFT JOIN Employees AS e ON o.EmployeeID = e.EmployeeID
                             LEFT JOIN Shippers AS s ON o.ShipperID = s.ShipperID
-                    WHERE   o.OrderID = @OrderID";
-				return connection.QueryFirstOrDefault<Order>(sql: sql, param: new { OrderID = orderId }, commandType: CommandType.Text);
-			}
+                    WHERE   (@Status = 0 OR o.Status = @Status)
+                        AND (@SearchValue = N'' OR c.CustomerName LIKE @SearchValue OR s.ShipperName LIKE @SearchValue)
+                    ) AS t
+            WHERE (@PageSize = 0) OR (t.RowNumber BETWEEN(@Page -1)*@PageSize + 1 AND @Page*@PageSize)
+            ORDER BY t.RowNumber";
+
+			var parameters = new
+			{
+				page = filter.Page,
+				pageSize = filter.PageSize,
+				Status = filter.Status,
+				searchValue = filter.SearchValue
+			};
+
+			var result = await connection.QueryAsync<Order>(sql, parameters);
+			return result.ToList();
 		}
 
-		public int CreateOrder(CreateOrderDto dto)
+		public async Task<Order?>	GetOrderById(int orderId)
+		{
+			using var connection = ConnectDB.LiteCommerceDB();
+
+			var sql = @"SELECT  o.*,  
+                    c.CustomerName,
+                    c.ContactName as CustomerContactName,
+                    c.Address as CustomerAddress,
+                    c.Email as CustomerEmail,
+                    e.FullName as EmployeeFullName,
+                    s.ShipperName,
+                    s.Phone as ShipperPhone
+            FROM    Orders as o
+                    LEFT JOIN Customers AS c ON o.CustomerID = c.CustomerID
+                    LEFT JOIN Employees AS e ON o.EmployeeID = e.EmployeeID
+                    LEFT JOIN Shippers AS s ON o.ShipperID = s.ShipperID
+            WHERE   o.OrderID = @OrderID";
+
+			return await connection.QueryFirstOrDefaultAsync<Order>(sql, new { OrderID = orderId });
+		}
+
+		public async Task<int> CreateOrder(CreateOrderDto dto)
 		{
 			var data = new Order
 			{
@@ -93,30 +95,35 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.OrderRepository
 				SalePrice = d.SalePrice
 			});
 
-			using (var connection = ConnectDB.LiteCommerceDB())
+			using var connection = ConnectDB.LiteCommerceDB();
+
+			var sqlAddOrder = @"IF EXISTS(SELECT * FROM Orders WHERE OrderID = @OrderID)
+                    SELECT -1
+                ELSE
+                BEGIN
+                    INSERT INTO Orders(CustomerID, OrderTime, EmployeeID, AcceptTime, ShipperID, ShippedTime, FinishedTime, Status, DeliveryAddress, DeliveryProvince)
+                    VALUES(@CustomerID, @OrderTime, @EmployeeID, @AcceptTime, @ShipperID, @ShippedTime, @FinishedTime, @Status, @DeliveryAddress, @DeliveryProvince);
+                    SELECT CAST(SCOPE_IDENTITY() AS INT);
+                END";
+
+			var orderID = await connection.ExecuteScalarAsync<int>(sqlAddOrder, data);
+
+			var sqlAddOrderDetail = @"INSERT INTO OrderDetails(OrderID, ProductID, Quantity, SalePrice) VALUES(@OrderID, @ProductID, @Quantity, @SalePrice)";
+			foreach (var item in details)
 			{
-				var sqlAddOrder = @"IF EXISTS(SELECT * FROM Orders WHERE OrderID = @OrderID)
-                            SELECT -1
-                        ELSE
-                        BEGIN
-                            INSERT INTO Orders(CustomerID, OrderTime, EmployeeID, AcceptTime, ShipperID, ShippedTime, FinishedTime, Status, DeliveryAddress, DeliveryProvince)
-                            VALUES(@CustomerID, @OrderTime, @EmployeeID, @AcceptTime, @ShipperID, @ShippedTime, @FinishedTime, @Status, @DeliveryAddress, @DeliveryProvince);
-                            SELECT @@IDENTITY;
-                        END";
-
-				var orderID = connection.ExecuteScalar<int>(sqlAddOrder, data);
-
-				var sqlAddOrderDetail = @"INSERT INTO OrderDetails(OrderID, ProductID, Quantity, SalePrice) VALUES(@OrderID, @ProductID, @Quantity, @SalePrice)";
-				foreach (var item in details)
+				await connection.ExecuteAsync(sqlAddOrderDetail, new
 				{
-					connection.Execute(sqlAddOrderDetail, new { OrderID = orderID, item.ProductID, item.Quantity, item.SalePrice });
-				}
-
-				return orderID;
+					OrderID = orderID,
+					item.ProductID,
+					item.Quantity,
+					item.SalePrice
+				});
 			}
+
+			return orderID;
 		}
 
-		public bool UpdateOrder(EditOrderDto dto)
+		public async Task<bool> UpdateOrder(EditOrderDto dto)
 		{
 			var order = new Order
 			{
@@ -131,49 +138,53 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.OrderRepository
 				Status = dto.Status
 			};
 
-			using (var connection = ConnectDB.LiteCommerceDB())
-			{
-				var sql = @"UPDATE Orders
-                    SET CustomerID = @CustomerID,
-                        OrderTime = @OrderTime,
-                        EmployeeID = @EmployeeID,
-                        AcceptTime = @AcceptTime,
-                        ShipperID = @ShipperID,
-                        ShippedTime = @ShippedTime,
-                        FinishedTime = @FinishedTime,
-                        Status = @Status
-                    WHERE OrderID = @OrderID";
-				return connection.Execute(sql, order) > 0;
-			}
+			using var connection = ConnectDB.LiteCommerceDB();
+
+			var sql = @"UPDATE Orders
+            SET CustomerID = @CustomerID,
+                OrderTime = @OrderTime,
+                EmployeeID = @EmployeeID,
+                AcceptTime = @AcceptTime,
+                ShipperID = @ShipperID,
+                ShippedTime = @ShippedTime,
+                FinishedTime = @FinishedTime,
+                Status = @Status
+            WHERE OrderID = @OrderID";
+
+			var affected = await connection.ExecuteAsync(sql, order);
+			return affected > 0;
 		}
 
-		public bool DeleteOrder(int orderId)
+		public async Task<bool> DeleteOrder(int orderId)
 		{
-			using (var connection = ConnectDB.LiteCommerceDB())
-			{
-				var sql = @"DELETE FROM OrderDetails WHERE OrderID = @OrderID;
+			using var connection = ConnectDB.LiteCommerceDB();
+
+			var sql = @"DELETE FROM OrderDetails WHERE OrderID = @OrderID;
                     DELETE FROM Orders WHERE OrderID = @OrderID;";
-				return connection.Execute(sql, new { OrderID = orderId }) > 0;
-			}
+
+			var affected = await connection.ExecuteAsync(sql, new { OrderID = orderId });
+			return affected > 0;
 		}
 
-		public int Count(OrderFilterDto filter)
+		public async Task<int> Count(OrderFilterDto filter)
 		{
 			if (!string.IsNullOrEmpty(filter.SearchValue))
 				filter.SearchValue = "%" + filter.SearchValue + "%";
 
-			using (var connection = ConnectDB.LiteCommerceDB())
+			using var connection = ConnectDB.LiteCommerceDB();
+
+			var sql = @"SELECT COUNT(*)
+            FROM Orders AS o
+                LEFT JOIN Customers AS c ON o.CustomerID = c.CustomerID
+                LEFT JOIN Shippers AS s ON o.ShipperID = s.ShipperID
+            WHERE (@Status = 0 OR o.Status = @Status)
+                AND (@SearchValue = N'' OR c.CustomerName LIKE @SearchValue OR s.ShipperName LIKE @SearchValue)";
+
+			return await connection.ExecuteScalarAsync<int>(sql, new
 			{
-				var sql = @"SELECT COUNT(*)
-                    FROM Orders AS o
-                        LEFT JOIN Customers AS c ON o.CustomerID = c.CustomerID
-                        LEFT JOIN Shippers AS s ON o.ShipperID = s.ShipperID
-                    WHERE (@Status = 0 OR o.Status = @Status)
-                        AND (@SearchValue = N'' OR c.CustomerName LIKE @SearchValue OR s.ShipperName LIKE @SearchValue)";
-
-				return connection.ExecuteScalar<int>(sql, new { filter.Status, filter.SearchValue });
-			}
+				filter.Status,
+				filter.SearchValue
+			});
 		}
-
 	}
 }

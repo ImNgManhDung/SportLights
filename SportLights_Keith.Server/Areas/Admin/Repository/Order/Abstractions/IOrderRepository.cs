@@ -5,11 +5,16 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Orders.Abstractions
 {
 	public interface IOrderRepository
 	{
-		List<Order> GetOrders(OrderFilterDto filter);
-		Order? GetOrderById(int orderId);
-		int CreateOrder(CreateOrderDto dto);
-		bool UpdateOrder(EditOrderDto dto);
-		bool DeleteOrder(int orderId);
-		int Count(OrderFilterDto filter);
+		Task<List<Order>> LoadOrders(OrderFilterDto filter);
+
+		Task<Order?> GetOrderById(int orderId);
+
+		Task<int> CreateOrder(CreateOrderDto dto);
+
+		Task<bool> UpdateOrder(EditOrderDto dto);
+
+		Task<bool> DeleteOrder(int orderId);
+
+		Task<int> Count(OrderFilterDto filter);
 	}
 }
