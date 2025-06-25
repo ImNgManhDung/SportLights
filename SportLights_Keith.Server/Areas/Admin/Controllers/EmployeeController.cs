@@ -98,12 +98,12 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 
 		[HttpPost("employee")]
 		[Consumes("multipart/form-data")]
-		public async Task<IActionResult> CreateEmployee([FromForm] CreateEmployeeRequestDto viewData)
+		public async Task<IActionResult> CreateEmployee([FromForm] CreateEmployeeDto viewData)
 		{
 			if (string.IsNullOrWhiteSpace(viewData.FullName))
 				return BadRequest(MsgEmployeeNameRequired);
 
-			DateTime? birthDate = Converter.StringToDateTime(viewData.Birthday);
+			DateTime? birthDate = viewData.BirthDay;
 			if (birthDate == null)
 				return BadRequest(MsgInvalidBirthDate);
 
@@ -127,7 +127,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 			var createEmployeeDto = new CreateEmployeeDto
 			{
 				FullName = viewData.FullName,
-				BirthDate = birthDate.Value,
+				BirthDay = birthDate.Value,
 				Address = viewData.Address,
 				Phone = viewData.Phone,
 				Email = viewData.Email,
@@ -148,7 +148,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 
 		[HttpPut("employee/{employeeId}")]
 		[Consumes("multipart/form-data")]
-		public async Task<IActionResult> UpdateEmployee(int employeeId, [FromForm] EditEmployeeRequestDto viewData)
+		public async Task<IActionResult> UpdateEmployee(int employeeId, [FromForm] EditEmployeeDto viewData)
 		{
 			if (employeeId != viewData.EmployeeId)
 				return BadRequest(MsgError);
@@ -157,7 +157,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 			if (existing == null)
 				return NotFound(MsgEmployeeNotFound);
 
-			DateTime? birthDate = Converter.StringToDateTime(viewData.Birthday);
+			DateTime? birthDate = viewData.BirthDay;
 			if (birthDate == null)
 				return BadRequest(MsgInvalidBirthDate);
 
@@ -184,7 +184,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Controllers
 				FullName = viewData.FullName,
 				Address = viewData.Address,
 				Email = viewData.Email,
-				BirthDate = birthDate.Value,
+				BirthDay = birthDate.Value,
 				Photo = fileName
 			};
 
