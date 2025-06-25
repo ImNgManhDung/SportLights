@@ -41,13 +41,13 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Employees
 									END";
 				var parameters = new
 				{
-					dto.FullName,
-					dto.BirthDate,
-					dto.Address,
-					dto.Phone,
-					dto.Email,
-					dto.Photo,
-					dto.IsWorking
+					FullName =dto.FullName,
+					BirthDate = dto.BirthDay,
+					Address = dto.Address,
+					Phone = dto.Phone,
+					Email = dto.Email,
+					Photo = dto.Photo,
+					IsWorking = 1 // Default value for IsWorking
 				};
 
 				id = await connection.ExecuteScalarAsync<int>(sql, parameters);
@@ -132,14 +132,14 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.Repository.Employees
 
 				var parameters = new
 				{
-					dto.EmployeeId,
-					dto.FullName,
-					dto.BirthDate,
-					dto.Address,
-					dto.Phone,
-					dto.Email,
-					dto.Photo,
-					dto.IsWorking
+					EmployeeId = dto.EmployeeId,
+					FullName = dto.FullName,
+					BirthDate = dto.BirthDay,
+					Address = dto.Address,
+					Phone = dto.Phone,
+					Email = dto.Email,
+					Photo = dto.Photo,
+					IsWorking = dto.IsWorking
 				};
 
 				return await connection.ExecuteAsync(sql, parameters) > 0;
