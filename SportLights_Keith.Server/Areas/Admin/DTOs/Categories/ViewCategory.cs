@@ -7,6 +7,5 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.DTOs.Categories
 	{
 		public string? SearchValue { get; set; } = string.Empty;
 
-
 	}
 }

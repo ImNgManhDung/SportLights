@@ -4,9 +4,7 @@ namespace SPORTLIGHTS_SERVER.Areas.Admin.DTOs.Categories
 {
 	public class ViewFitlerCategory : ViewPaginateInputBase
 	{
-		public string? SearchValue { get; set; } = string.Empty;
-
-
+		public string SearchValue { get; set; } = string.Empty;
 
 	}
 }

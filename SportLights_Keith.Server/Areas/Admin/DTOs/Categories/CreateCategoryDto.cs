@@ -1,17 +1,18 @@
-﻿using SPORTLIGHTS_SERVER.Attributes.Validations;
-using SPORTLIGHTS_SERVER.Constants;
-using System.ComponentModel.DataAnnotations;
+﻿	using SPORTLIGHTS_SERVER.Attributes.Validations;
+	using SPORTLIGHTS_SERVER.Constants;
+	using System.ComponentModel.DataAnnotations;
 
-namespace SPORTLIGHTS_SERVER.Areas.Admin.DTOs.Categories
-{
-	public class CreateCategoryDto
+	namespace SPORTLIGHTS_SERVER.Areas.Admin.DTOs.Categories
 	{
-	
-		[Display(Name = "CategoryName")]
-		[Required(ErrorMessage = "Yêu cầu nhập dữ liệu {0}")]
+		public class CreateCategoryDto
+		{
+
+		[Display(Name = "Category Name")]
+		[Required(ErrorMessage = "{0} is required")]
 		[StringLength(ValidatesConstant.MAX_NAME, MinimumLength = ValidatesConstant.MIN_NAME,
-			ErrorMessage = "{0} tối thiểu {2} kí tự và tối đa {1} kí tự")]		
-		public string? CategoryName { get; set; }			
+		ErrorMessage = "{0} must be at least {2} characters and at most {1} characters")]
+		public string CategoryName { get; set; } = string.Empty;		
+		
 		public string? CategoryDescription { get; set; }
+		}
 	}
-}
